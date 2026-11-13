@@ -17,7 +17,7 @@ review, across every repository, grouped by repository with CI, review and merge
   same list.
 
 It refreshes every 30 seconds through the GitHub CLI, so it needs [`gh`](https://cli.github.com)
-installed and signed in (`gh auth login`). It shows the 25 most recently updated PRs of each kind.
+(or the same CLI installed as `gh-cli`) signed in with `gh auth login`; without it, the pane says so. It shows the 25 most recently updated PRs of each kind.
 
 ### Install
 

@@ -1,4 +1,5 @@
 import type { On, OpEventResult } from 'claude-code'
+import type { Engine } from 'claude-code/testing'
 import { expect, test } from 'claude-code/testing'
 
 const PANE = {
@@ -46,7 +47,7 @@ const copied: string[] = []
 
 function engine(
   on: On,
-  gh: () => OpEventResult<'process.run'> | Promise<OpEventResult<'process.run'>> = () => ANSWERED,
+  gh: (argv: readonly string[]) => OpEventResult<'process.run'> | Promise<OpEventResult<'process.run'>> = () => ANSWERED,
   saved: (key: string, value: unknown) => void = () => {},
 ) {
   on('command.register', () => ({ value: { command: 'prs' } }))
@@ -61,7 +62,7 @@ function engine(
     saved(e.key, e.value)
     return { value: undefined }
   })
-  on('process.run', gh)
+  on('process.run', (_, e) => gh(e.argv))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
 }
 
@@ -155,5 +156,46 @@ test('/prs with a part of a name sets the pane filter, and a bare /prs keeps it'
   expect(saved).toBe('WIDG')
 
   expect((await prs('')).text).toBe('2 open PRs matching WIDG; refreshing.')
+  await ui.unmount()
+})
+
+// What a command that cannot start does to `$.process.run`: the call rejects.
+const MISSING: OpEventResult<'process.run'> = { deny: 'spawn ENOENT' }
+
+// A rejected call settles after session.start has returned, so the first fetch
+// is waited for through the tool before the pane is drawn; a pane drawn sooner
+// shows "loading…" whatever the fetch ends in.
+async function firstFetch($: Engine) {
+  for (let tries = 0; tries < 100; tries++) {
+    const answer = JSON.parse(String((await $.tool.call({ tool: 'mcp__pr-radar__pr_status', repo: '' })).result))
+    if (answer.fetchedAt) return answer
+  }
+  throw new Error('the first fetch never finished')
+}
+
+test('with no GitHub CLI the pane says how to get one, where it used to say "loading…" forever', async ($, on) => {
+  const tried: string[] = []
+  engine(on, argv => {
+    tried.push(argv[0] ?? '')
+    return MISSING
+  })
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await firstFetch($)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /^GitHub CLI not found: install it from https:\/\/cli.github.com/ })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: 'loading…' })).toBeUndefined()
+  expect(tried.slice(0, 2)).toEqual(['gh', 'gh-cli'])
+  await ui.unmount()
+})
+
+test('a GitHub CLI installed as gh-cli is used when gh is not there', async ($, on) => {
+  engine(on, argv => (argv[0] === 'gh-cli' ? ANSWERED : MISSING))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await firstFetch($)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /acme\/widgets/ })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: /GitHub CLI not found/ })).toBeUndefined()
   await ui.unmount()
 })

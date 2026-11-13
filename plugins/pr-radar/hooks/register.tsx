@@ -90,13 +90,57 @@ async function refresh($: EngineInterface) {
   isFetching = true
   try {
     await fetchPrs($)
+  } catch (err) {
+    // `$.process.run` rejects rather than answering when the command cannot
+    // start or outlives its timeout; uncaught, the pane says "loading…" forever.
+    const failure = err instanceof GhFailure ? err : new GhFailure(String(err), 'PRs: gh failed')
+    await update($, snapshot, old => ({ ...old, error: failure.message, at: Date.now() }))
+    $.ui.status(failure.status)
   } finally {
     isFetching = false
   }
 }
 
+class GhFailure extends Error {
+  constructor(
+    message: string,
+    readonly status: string,
+  ) {
+    super(message)
+  }
+}
+
+// The GitHub CLI's command is `gh`; some installs name it `gh-cli`. The first
+// that starts is kept for the rest of the session.
+const GH_COMMANDS = ['gh', 'gh-cli']
+const GH_TIMEOUT_MS = 20_000
+let ghCommand: string | undefined
+
+async function runGh($: EngineInterface, args: string[]) {
+  for (const command of ghCommand ? [ghCommand] : GH_COMMANDS) {
+    const started = Date.now()
+    try {
+      const ran = await $.process.run([command, ...args], { timeoutMs: GH_TIMEOUT_MS })
+      ghCommand = command
+      return ran
+    } catch {
+      // Both a missing command and a timeout reject, and only the time tells
+      // them apart; a command that ran out its time exists, so trying the next
+      // name would only wait twice.
+      if (Date.now() - started >= GH_TIMEOUT_MS - 1_000) {
+        throw new GhFailure(`GitHub CLI did not answer within ${GH_TIMEOUT_MS / 1000} seconds`, 'PRs: gh timed out')
+      }
+    }
+  }
+  ghCommand = undefined
+  throw new GhFailure(
+    'GitHub CLI not found: install it from https://cli.github.com and run gh auth login',
+    'PRs: gh not found',
+  )
+}
+
 async function fetchPrs($: EngineInterface) {
-  const ran = await $.process.run(['gh', 'api', 'graphql', '-f', `query=${QUERY}`], { timeoutMs: 20_000 })
+  const ran = await runGh($, ['api', 'graphql', '-f', `query=${QUERY}`])
   if (ran.exitCode !== 0) {
     const error = ran.stderr.trim().split('\n')[0] || `gh exited ${ran.exitCode}`
     await update($, snapshot, old => ({ ...old, error, at: Date.now() }))
