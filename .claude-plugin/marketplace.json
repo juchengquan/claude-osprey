@@ -1,0 +1,14 @@
+{
+  "name": "claude-osprey",
+  "owner": {
+    "name": "juchengquan"
+  },
+  "description": "Small mods for Claude Code, each installed on its own",
+  "plugins": [
+    {
+      "name": "pr-radar",
+      "source": "./plugins/pr-radar",
+      "description": "Your open GitHub PRs and the ones waiting for your review, in a pane beside the chat"
+    }
+  ]
+}
