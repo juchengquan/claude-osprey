@@ -1,6 +1,6 @@
 {
   "name": "pr-radar",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Your open GitHub PRs and the ones waiting for your review, grouped by repository with CI, review and merge state: a pane (/prs), a status line, and a tool Claude can read them from",
   "types": "./types/index.d.ts",
   "author": {

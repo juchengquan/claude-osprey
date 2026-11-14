@@ -199,3 +199,44 @@ test('a GitHub CLI installed as gh-cli is used when gh is not there', async ($, 
   expect(await ui.find({ type: 'Text', text: /GitHub CLI not found/ })).toBeUndefined()
   await ui.unmount()
 })
+
+test('each review state has its colour: yellow your move, green waiting on others, magenta ready to merge, red blocked', async ($, on) => {
+  const own = (number: number, change: object) => ({ ...pr('acme/widgets', number), ...change })
+  const states = JSON.stringify({
+    data: {
+      viewer: { login: 'me' },
+      mine: {
+        nodes: [
+          own(1, { isDraft: true }),
+          own(2, {}),
+          own(3, { reviewDecision: 'APPROVED' }),
+          own(4, { reviewDecision: 'CHANGES_REQUESTED' }),
+          // A draft alone must still mark its heading as your move.
+          { ...pr('acme/drafts', 5), isDraft: true },
+          pr('acme/quiet', 6),
+          pr('acme/quiet', 8),
+        ],
+      },
+      asked: { nodes: [pr('acme/widgets', 7, 'alice')] },
+    },
+  })
+  engine(on, () => ({ value: { ...ANSWERED.value, stdout: states } }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await firstFetch($)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  // A heading's count is told apart by its number: drafts (1), quiet (2), widgets (5).
+  // Anchored, since a text match also finds the heading that holds it.
+  const count = async (n: number) => (await ui.findAll({ type: 'Text', text: new RegExp(`^\\(${n}\\)$`) })).map(t => t.props.color)
+  expect(await count(1)).toEqual(['yellow'])
+  expect(await count(2)).toEqual([undefined])
+  expect(await count(5)).toEqual(['yellow'])
+  await ui.press({ key: 'fold-acme/widgets' })
+  const colour = async (text: string) => (await ui.findAll({ type: 'Text', text: new RegExp(`^${text}$`) })).map(t => t.props.color)
+  expect(await colour('draft')).toEqual(['yellow'])
+  expect(await colour('awaiting review')).toEqual(['green'])
+  expect(await colour('approved')).toEqual(['magenta'])
+  expect(await colour('changes requested')).toEqual(['red'])
+  expect(await colour('needs your review')).toEqual(['yellow'])
+  await ui.unmount()
+})

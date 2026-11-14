@@ -303,10 +303,10 @@ export const register: Register = on => {
 }
 
 // A collapsed heading's count says whether anything under it needs a look:
-// red for failing CI or conflicts, yellow for a review asked of you.
+// red for failing CI or conflicts, yellow when one is your move.
 const needsFix = (pr: Pr) => pr.ci === 'FAILURE' || pr.ci === 'ERROR' || pr.mergeable === 'CONFLICTING'
 const groupColor = (group: Pr[]) =>
-  group.some(needsFix) ? 'red' : group.some(pr => !pr.isMine) ? 'yellow' : undefined
+  group.some(needsFix) ? 'red' : group.some(pr => reviewColor(pr) === 'yellow') ? 'yellow' : undefined
 
 const ciLabel = (ci: Pr['ci']) =>
   ci === 'SUCCESS' ? '✓ passing' : ci === 'FAILURE' || ci === 'ERROR' ? '✗ failing' : ci ? '● running' : '– none'
@@ -314,5 +314,7 @@ const ciColor = (ci: Pr['ci']) =>
   ci === 'SUCCESS' ? 'green' : ci === 'FAILURE' || ci === 'ERROR' ? 'red' : ci ? 'yellow' : 'gray'
 const reviewLabel = (pr: Pr) =>
   !pr.isMine ? 'needs your review' : pr.isDraft ? 'draft' : pr.review === 'APPROVED' ? 'approved' : pr.review === 'CHANGES_REQUESTED' ? 'changes requested' : 'awaiting review'
+// Yellow is your move (a draft to finish, a review asked of you) and green is
+// waiting on others, so "approved", ready to merge, needs a colour of its own.
 const reviewColor = (pr: Pr) =>
-  !pr.isMine ? 'yellow' : pr.isDraft ? 'gray' : pr.review === 'APPROVED' ? 'green' : pr.review === 'CHANGES_REQUESTED' ? 'red' : 'yellow'
+  !pr.isMine ? 'yellow' : pr.isDraft ? 'yellow' : pr.review === 'APPROVED' ? 'magenta' : pr.review === 'CHANGES_REQUESTED' ? 'red' : 'green'
