@@ -1,7 +1,7 @@
 # claude-osprey
 
-Small mods for [Claude Code](https://claude.com/claude-code), each installed on its own from this
-repository.
+Small mods for [Claude Code](https://claude.com/claude-code) and other coding agents, each installed
+on its own from this repository.
 
 ## pr-radar
 
@@ -40,3 +40,63 @@ Add marketplace with `juchengquan/claude-osprey`, then Add plugin.
 
 To switch it off and on again: `claude plugin disable pr-radar@claude-osprey` and
 `claude plugin enable pr-radar@claude-osprey`.
+
+## build-issue
+
+A skill that takes a GitHub issue from branch to a PR you can merge without re-checking it. Say
+**"run #N"** (or "build #N", or "run #A and #B in parallel") and the agent:
+
+- decides whether the main session builds it or a background agent does, and for an issue with open
+  questions, investigates first and stops for your decisions;
+- builds in a git worktree beside the repository, never in a tree something live runs from;
+- briefs the builder with the issue, your decisions and your project's hard rules, and holds it to
+  test-first work, a mutation check for every rule it adds, and a draft PR;
+- gates the PR: an independent review, the checks re-run on the pushed commit, then ready.
+
+Say **"#N merged"** and it confirms the merge on the default branch before removing the worktree and
+branch; **"rebase the stack"** rebases dependent PRs; **"deploy and check"** deploys and shows the
+checks. You merge every PR and decide every deploy.
+
+It works in any coding agent that loads skills, and uses the GitHub CLI (`gh`, or the same CLI
+installed as `gh-cli`).
+
+### Project settings
+
+Each project describes itself in a `## Building issues` section of its `CLAUDE.md` (or
+`AGENTS.md`): its check command, flaky suites, worktree setup, protected paths, generated files,
+hard rules, deploy and so on. For example:
+
+```markdown
+## Building issues
+
+- **Check:** `make check`
+- **Extra tests:** `npm --prefix web test`, 3 runs in a row
+- **Worktree setup:** `npm ci`
+- **Protected paths:** `~/srv/shop`: the live site runs from it; only `make deploy` moves it
+- **Generated files:** `web/dist` via `make build-ui`
+- **Deploy:** from `~/srv/shop`, `make deploy`; then show `/health` answering ok
+```
+
+Only **Check** is required. Every setting, with a template, is in
+[`settings.md`](plugins/build-issue/skills/build-issue/settings.md). Where a project has no section,
+the skill drafts one for you to paste in and asks before building; it never edits the file itself.
+
+### Install
+
+In Claude Code:
+
+```
+/plugin install build-issue --marketplace juchengquan/claude-osprey
+```
+
+or `claude plugin install build-issue --marketplace juchengquan/claude-osprey` from a shell. It then
+runs as `/build-issue:build-issue`, or on its own when you say "run #N".
+
+In OpenCode, Codex, Cursor and the other agents the [`skills`](https://github.com/vercel-labs/skills)
+CLI supports:
+
+```
+npx skills add juchengquan/claude-osprey --skill build-issue -g
+```
+
+Install it one way per agent: in Claude Code, the plugin alone, or the skill appears twice.
