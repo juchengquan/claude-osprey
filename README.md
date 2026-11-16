@@ -69,6 +69,8 @@ hard rules, deploy and so on. For example:
 ```markdown
 ## Building issues
 
+Builds, merges and deploys follow the `build-issue` skill (from juchengquan/claude-osprey).
+
 - **Check:** `make check`
 - **Extra tests:** `npm --prefix web test`, 3 runs in a row
 - **Worktree setup:** `npm ci`

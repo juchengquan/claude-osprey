@@ -82,7 +82,8 @@ the decision records (ADRs) that bear on it, and give it:
   reference);
 - generated files only through the *generated files* setting's commands, never by hand;
 - every area the *must change together* setting pairs with the change, changed in the same PR;
-- a mutation check for every guard or rule the change adds: undo it, show which tests fail, restore;
+- a mutation check for every guard or rule the change adds: commit the change, undo the guard, show
+  which tests fail, and restore it with `git checkout -- <file>`;
 - the *check* setting run on exactly the committed tree, and each *extra test* the number of times
   its setting says;
 - a DRAFT PR whose body says what each decision built, the mutation results, and `Closes #N` (or
@@ -92,8 +93,10 @@ Commits and PR bodies end with the *sign-off* setting's lines. No bare `@name` a
 
 ## 4. The gate, before "ready"
 
-1. **Review**, for anything medium or large: a SECOND agent, given the PR and the issue (never the
-   builder's account of it), asked for ranked, confirmed findings, each with its evidence. The
+1. **Review** every PR except a trivial one: a trivial PR adds no file, changes about 100 lines or
+   fewer, and carries no decision the builder made that the issue had not. Every other PR goes to a
+   SECOND agent, given the PR and the issue (never the builder's account of it), asked for ranked,
+   confirmed findings, each with its evidence. The
    `code-review` skill, where installed, can run it. It also runs each *review extras* setting that
    applies, such as a migration tried on a copy of real data. Send the findings back to the builder;
    a finding that changes a decision goes to the owner first.

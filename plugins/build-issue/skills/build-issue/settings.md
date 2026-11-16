@@ -36,7 +36,7 @@ the repository root.
 ```markdown
 ## Building issues
 
-Builds follow the `build-issue` skill (from juchengquan/claude-osprey).
+Builds, merges and deploys follow the `build-issue` skill (from juchengquan/claude-osprey).
 
 - **Check:** `<command>`
 - **Extra tests:** `<command>`, <N> runs in a row
@@ -59,7 +59,7 @@ Builds follow the `build-issue` skill (from juchengquan/claude-osprey).
 ```markdown
 ## Building issues
 
-Builds follow the `build-issue` skill (from juchengquan/claude-osprey).
+Builds, merges and deploys follow the `build-issue` skill (from juchengquan/claude-osprey).
 
 - **Check:** `make check`
 - **Extra tests:** `npm --prefix web test`, 3 runs in a row (the jsdom suite flakes under load)
