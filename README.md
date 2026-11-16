@@ -102,3 +102,11 @@ npx skills add juchengquan/claude-osprey --skill build-issue -g
 ```
 
 Install it one way per agent: in Claude Code, the plugin alone, or the skill appears twice.
+
+### Testing a change to it
+
+`plugins/build-issue/tests/dry-run.sh` runs the skill from this checkout against a scratch
+repository with a local origin and a stand-in GitHub CLI, and checks what it did: that it fires on
+"run #N" and not on triage, drafts missing settings, stops on open forks, deletes nothing for a PR
+that did not merge, and briefs an agent for a heavy area. Add `light-build` for a whole build.
+Nothing reaches GitHub, but each scenario is a real model call (about $1.50 for the default set).

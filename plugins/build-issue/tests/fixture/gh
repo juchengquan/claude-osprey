@@ -1,0 +1,21 @@
+#!/bin/sh
+# A stand-in for the GitHub CLI. It answers from fixture files under the
+# repository's .git/stub/ directory, which the case's scaffold writes.
+S="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/stub"
+echo "gh $*" >> "$S/calls.log" 2>/dev/null
+num() { echo "$*" | sed -E 's/.*(view|ready|edit|comment|diff|checks) ([0-9]+).*/\2/'; }
+case "$*" in
+  "--version"*) echo "gh version 2.87.3 (stub)";;
+  "auth status"*) echo "Logged in to github.com account owner";;
+  "issue view"*) n=$(echo "$*" | sed -E 's/issue view ([0-9]+).*/\1/'); cat "$S/issue/$n" 2>/dev/null || { echo "no issue $n" >&2; exit 1; };;
+  "issue comment"*|"pr comment"*|"pr edit"*) echo "ok";;
+  "pr view"*"mergeCommit"*) cat "$S/pr/$(num "$*").state" 2>/dev/null || echo "OPEN ";;
+  "pr view"*"mergeable"*) echo '{"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN"}';;
+  "pr view"*) cat "$S/pr/$(num "$*").json" 2>/dev/null || echo "{\"number\":$(num "$*"),\"state\":\"OPEN\"}";;
+  "pr checks"*) echo "no checks reported on the branch" >&2; exit 1;;
+  "pr list"*) cat "$S/pr/list.json" 2>/dev/null || echo "[]";;
+  "pr create"*) echo "https://github.com/owner/shop/pull/40";;
+  "pr ready"*) echo "marked as ready for review";;
+  "repo view"*) echo '{"name":"shop","defaultBranchRef":{"name":"main"}}';;
+  *) echo "gh stub: unsupported: $*" >&2; exit 1;;
+esac

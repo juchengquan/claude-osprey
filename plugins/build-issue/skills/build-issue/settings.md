@@ -28,6 +28,7 @@ the repository root.
 | **Hard rules** | no | Rules quoted verbatim in every brief, such as services and databases a builder may not write to | Pasted word for word into the brief, ahead of the skill's own rules |
 | **Branch prefixes** | no | The allowed `<type>` prefixes of branch names | Defaults to `feat`, `fix`, `refactor`, `docs` |
 | **Review extras** | no | Checks the reviewer runs when a change includes something, such as a migration tried on a copy of real data | Run by the second agent at the gate when the condition holds |
+| **CI wait** | no | How long to wait for the PR's CI checks | Waited on before "ready" when the PR has checks; defaults to 30 minutes |
 | **Deploy** | no | The tree to deploy from, the deploy command, and the post-deploy checks to show | Used only on "deploy and check"; without it there is nothing to deploy |
 | **Sign-off** | no | Lines that end every commit message and PR body | Appended as given |
 
@@ -49,6 +50,7 @@ Builds, merges and deploys follow the `build-issue` skill (from juchengquan/clau
   > <rule, quoted exactly as builders must read it>
 - **Branch prefixes:** `feat`, `fix`, `refactor`, `docs`
 - **Review extras:** when <condition>, <check>
+- **CI wait:** <minutes> minutes
 - **Deploy:** from `<tree>`, `<command>`; then show:
   - <check>
 - **Sign-off:** <lines>
