@@ -1,6 +1,6 @@
 ---
 name: build-issue
-description: Build a GitHub issue from branch to merged PR — who builds it (main session or background agent), its worktree, the builder's brief, the gate before ready, clean-up after merge, deploy on request. Use when the owner tells you to build an issue or to act on a PR built this way: "run #N" / "build #N", "run #A and #B in parallel", "#N merged", "rebase the stack", "deploy and check", or asks where builds stand ("where is #N?", "what's in flight?"). Questions about an issue itself (triage, "is it clear?", "look at #N") are answered without it.
+description: "Build a GitHub issue from branch to merged PR — who builds it (main session or background agent), its worktree, the builder's brief, the gate before ready, clean-up after merge, deploy on request. Use when the owner tells you to build an issue or to act on a PR built this way: \"run #N\" / \"build #N\", \"run #A and #B in parallel\", \"#N merged\", \"rebase the stack\", \"deploy and check\", or asks where builds stand (\"where is #N?\", \"what's in flight?\"). Questions about an issue itself (triage, \"is it clear?\", \"look at #N\") are answered without it."
 ---
 
 # Build an issue
