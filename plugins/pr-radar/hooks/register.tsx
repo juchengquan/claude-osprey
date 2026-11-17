@@ -11,10 +11,11 @@ const snapshot = atom({ plugin: 'pr-radar', key: 'snapshot' } as const, { prs: [
 })
 
 // The filter typed in the pane, matched case-insensitively against any part of
-// `owner/name`; '' is every repository. Kept in `$.store` so the next session
-// starts with it.
+// `owner/name`; '' is every repository. Kept in `$.store` under the session's
+// project folder, so the next session there starts with it and a session in
+// another project does not.
 const repo = atom({ plugin: 'pr-radar', key: 'repo' } as const, '', { shape: 'repo-1' })
-const REPO_KEY = 'repo'
+const repoKey = async ($: EngineInterface) => `repo:${await $.session.root()}`
 
 const matching = (prs: Pr[], filter: string) =>
   filter ? prs.filter(pr => pr.repo.toLowerCase().includes(filter.toLowerCase())) : prs
@@ -22,11 +23,11 @@ const matching = (prs: Pr[], filter: string) =>
 // Repositories opened under their heading; every other one starts collapsed,
 // a repository seen for the first time included. Kept like the filter.
 const expanded = atom({ plugin: 'pr-radar', key: 'expanded' } as const, [] as string[], { shape: 'expanded-1' })
-const EXPANDED_KEY = 'expanded'
+const expandedKey = async ($: EngineInterface) => `expanded:${await $.session.root()}`
 
 async function toggle($: EngineInterface, name: string) {
   const next = await update($, expanded, list => (list.includes(name) ? list.filter(n => n !== name) : [...list, name]))
-  await $.store.set(EXPANDED_KEY, next)
+  await $.store.set(await expandedKey($), next)
 }
 
 // The PRs arrive most recently updated first, so a repository's first
@@ -51,7 +52,7 @@ function showStatus($: EngineInterface, prs: Pr[], filter: string) {
 async function setRepo($: EngineInterface, typed: string) {
   const value = typed.trim()
   await update($, repo, () => value)
-  await $.store.set(REPO_KEY, value)
+  await $.store.set(await repoKey($), value)
   showStatus($, (await read($, snapshot)).prs, value)
 }
 
@@ -194,9 +195,9 @@ export const register: Register = on => {
       },
       isDeferred: false,
     })
-    const stored = await $.store.get(REPO_KEY)
+    const stored = await $.store.get(await repoKey($))
     await update($, repo, () => (typeof stored === 'string' ? stored : ''))
-    const opened = await $.store.get(EXPANDED_KEY)
+    const opened = await $.store.get(await expandedKey($))
     await update($, expanded, () => (Array.isArray(opened) ? opened.filter(n => typeof n === 'string') : []))
     void refresh($)
     $.clock.every(POLL_MS, () => refresh($))

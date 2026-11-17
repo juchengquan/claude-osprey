@@ -49,7 +49,11 @@ function engine(
   on: On,
   gh: (argv: readonly string[]) => OpEventResult<'process.run'> | Promise<OpEventResult<'process.run'>> = () => ANSWERED,
   saved: (key: string, value: unknown) => void = () => {},
+  stored: (key: string) => unknown = () => undefined,
+  root = '/',
 ) {
+  // Asked before session.start reaches these hooks, so it cannot be read off that event.
+  on('session.root', () => ({ value: root }))
   on('command.register', () => ({ value: { command: 'prs' } }))
   on('tool.register', () => ({ value: { tool: 'mcp__pr-radar__pr_status' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
@@ -57,7 +61,7 @@ function engine(
     copied.push(e.text)
     return { value: { isCopied: true } }
   })
-  on('store.get', () => ({ value: undefined }))
+  on('store.get', (_, e) => ({ value: stored(e.key) }))
   on('store.set', (_, e) => {
     saved(e.key, e.value)
     return { value: undefined }
@@ -142,7 +146,7 @@ test('/prs answers while gh still runs, so the prompt is not held for the fetch'
 test('/prs with a part of a name sets the pane filter, and a bare /prs keeps it', async ($, on) => {
   let saved: unknown
   engine(on, undefined, (key, value) => {
-    if (key === 'repo') saved = value
+    if (key.startsWith('repo:')) saved = value
   })
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   const prs = (args: string) =>
@@ -238,5 +242,31 @@ test('each review state has its colour: yellow your move, green waiting on other
   expect(await colour('approved')).toEqual(['magenta'])
   expect(await colour('changes requested')).toEqual(['red'])
   expect(await colour('needs your review')).toEqual(['yellow'])
+  await ui.unmount()
+})
+
+test("a project's filter and opened repositories are its own: a session elsewhere neither reads nor overwrites them", async ($, on) => {
+  // Kept for every session alike, a filter typed in one project greeted every
+  // later session, whatever project it was started in.
+  const store = new Map<string, unknown>([
+    ['repo:/work/widgets', 'WIDG'],
+    ['expanded:/work/widgets', ['acme/widgets']],
+    ['repo:/work/other', 'GADG'],
+  ])
+  engine(on, undefined, (key, value) => store.set(key, value), key => store.get(key), '/work/widgets')
+  await $.session.start({ cwd: '/work/widgets', surface: 'terminal', isInteractive: true })
+  await firstFetch($)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /acme\/widgets/ })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: /acme\/gadgets/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'PR 1' })).toBeTruthy()
+
+  await ui.input({ key: 'repo', text: 'acme' })
+  await ui.press({ key: 'fold-acme/gadgets' })
+  expect(store.get('repo:/work/widgets')).toBe('acme')
+  expect(store.get('expanded:/work/widgets')).toEqual(['acme/widgets', 'acme/gadgets'])
+  expect(store.get('repo:/work/other')).toBe('GADG')
+  expect(store.has('expanded:/work/other')).toBe(false)
   await ui.unmount()
 })
