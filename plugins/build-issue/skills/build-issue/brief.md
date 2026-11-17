@@ -17,8 +17,10 @@ directory.
 
 ## Read first
 
-`gh issue view N --comments`; the `## Building issues` section of `CLAUDE.md` (or `AGENTS.md`), and
-the rest of that file; and the decision records (ADRs) that bear on the change.
+`gh issue view N --comments`, and in it any triage brief (a comment written for an agent to build
+from) and every decision recorded there; the `## Building issues` section of `CLAUDE.md` (or
+`AGENTS.md`), and the rest of that file; `GLOSSARY.md` where it exists, so names in code and tests
+match the project's terms; and the decision records (ADRs) that bear on the change.
 
 ## Decisions
 
@@ -32,7 +34,9 @@ Stop the same way when investigation shows the issue's plan will not work as wri
 ## Practice
 
 - **Test first:** a failing test, seen failing for the right reason, then the code. The `tdd` skill,
-  where installed, is the reference.
+  where installed, is the reference for what a good test is, with one exception: where it says to
+  confirm the seams under test with the user, choose them yourself as an engineering choice and list
+  them in the PR. Nobody is there to answer. A seam that decides what a user sees is a fork: stop.
 - **Generated files** change only through the *generated files* setting's commands.
 - **Must change together:** every area the setting pairs with your change, changed in this PR.
 - **Mutation check** for every guard or rule you add: commit the change, undo the guard, record which
@@ -40,6 +44,8 @@ Stop the same way when investigation shows the issue's plan will not work as wri
 - **Checks:** the *check* setting on exactly the committed tree, and each *extra test* setting the
   number of times it says.
 - **Commits** end with the *sign-off* setting's lines.
+- **Up to date:** before pushing for the last time, rebase onto `origin/<default branch>` if it has
+  moved, regenerate generated files rather than merging them, and run the checks again.
 
 ## The PR
 

@@ -46,16 +46,25 @@ To switch it off and on again: `claude plugin disable pr-radar@claude-osprey` an
 A skill that takes a GitHub issue from branch to a PR you can merge without re-checking it. Say
 **"run #N"** (or "build #N", or "run #A and #B in parallel") and the agent:
 
+- claims the issue (assigns it to you and comments), so no second session builds it too;
 - decides whether the main session builds it or a background agent does, and for an issue with open
   questions, investigates first and stops for your decisions;
 - builds in a git worktree beside the repository, never in a tree something live runs from;
 - briefs the builder with the issue, your decisions and your project's hard rules, and holds it to
   test-first work, a mutation check for every rule it adds, and a draft PR;
-- gates the PR: an independent review, the checks re-run on the pushed commit, then ready.
+- gates the PR: an independent review, the branch brought up to date, the checks re-run on the
+  pushed commit, CI waited on, then ready; or, when something fails, a draft and a report of why.
 
 Say **"#N merged"** and it confirms the merge on the default branch before removing the worktree and
 branch; **"rebase the stack"** rebases dependent PRs; **"deploy and check"** deploys and shows the
-checks. You merge every PR and decide every deploy.
+checks; **"what's in flight?"** lists each build's issue, PR and worktree. The issue's comments are
+the record of each build, so a fresh session picks up where another stopped. You merge every PR and
+decide every deploy.
+
+It works beside the skills in [mattpocock/skills](https://github.com/mattpocock/skills) where they
+are installed: `tdd` for testing, `code-review` and `pr` at the gate, a `triage` brief as the
+builder's starting point, `to-tickets` and `implement-spec` for an issue too big for one PR, and
+`retro` after a build that went wrong. None of them is required.
 
 It works in any coding agent that loads skills, and uses the GitHub CLI (`gh`, or the same CLI
 installed as `gh-cli`).
@@ -107,6 +116,14 @@ Install it one way per agent: in Claude Code, the plugin alone, or the skill app
 
 `plugins/build-issue/tests/dry-run.sh` runs the skill from this checkout against a scratch
 repository with a local origin and a stand-in GitHub CLI, and checks what it did: that it fires on
-"run #N" and not on triage, drafts missing settings, stops on open forks, deletes nothing for a PR
-that did not merge, and briefs an agent for a heavy area. Add `light-build` for a whole build.
-Nothing reaches GitHub, but each scenario is a real model call (about $1.50 for the default set).
+"run #N" and not on triage, drafts missing settings, stops on open forks and on an issue someone else
+holds, deletes nothing for a PR that did not merge, briefs an agent for a heavy area, and reports
+what is in flight without changing anything. `light-build`, `behind-main` and `ci-fails` each run a
+whole build. Nothing reaches GitHub, but each scenario is a real model call (about $2 for the
+default set, $0.50 to $1 for each whole build).
+
+## Changing a plugin
+
+An installed plugin stays on its `version` until that changes, so every change to a plugin bumps
+the `version` in its `.claude-plugin/plugin.json`; CI fails a PR that changes a plugin without one.
+A change to `build-issue`'s behaviour comes with a dry-run scenario that shows it.

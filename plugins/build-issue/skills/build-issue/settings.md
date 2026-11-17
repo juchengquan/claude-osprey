@@ -32,6 +32,10 @@ the repository root.
 | **Deploy** | no | The tree to deploy from, the deploy command, and the post-deploy checks to show | Used only on "deploy and check"; without it there is nothing to deploy |
 | **Sign-off** | no | Lines that end every commit message and PR body | Appended as given |
 
+A hard rule is only as strong as the agent's attention to it. Where the project wants one enforced
+in Claude Code, hooks can block the command outright; the `git-guardrails-claude-code` skill sets
+them up for git (pushes, hard resets, forced deletes).
+
 ## Template
 
 ```markdown

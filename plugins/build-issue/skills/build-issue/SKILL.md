@@ -1,6 +1,6 @@
 ---
 name: build-issue
-description: Build a GitHub issue from branch to merged PR — who builds it (main session or background agent), its worktree, the builder's brief, the gate before ready, clean-up after merge, deploy on request. Use when the owner tells you to build an issue or to act on a PR built this way: "run #N" / "build #N", "run #A and #B in parallel", "#N merged", "rebase the stack", "deploy and check". Questions about an issue (triage, "is it clear?", "look at #N") are answered without it.
+description: Build a GitHub issue from branch to merged PR — who builds it (main session or background agent), its worktree, the builder's brief, the gate before ready, clean-up after merge, deploy on request. Use when the owner tells you to build an issue or to act on a PR built this way: "run #N" / "build #N", "run #A and #B in parallel", "#N merged", "rebase the stack", "deploy and check", or asks where builds stand ("where is #N?", "what's in flight?"). Questions about an issue itself (triage, "is it clear?", "look at #N") are answered without it.
 ---
 
 # Build an issue
@@ -14,9 +14,13 @@ loaded from.
 
 | The owner says | Do |
 | :- | :- |
-| "run #N", "build #N", "run #A and #B in parallel" | Sections 0–5 below |
+| "run #N", "build #N", "run #A and #B in parallel" | Sections 0–6 below |
 | "#N merged", "rebase the stack", "check the merge conflicts" | Section 0, then [after-merge.md](after-merge.md) |
 | "deploy and check" | Section 0, then [deploy.md](deploy.md) |
+| "where is #N?", "what's in flight?" | [status.md](status.md) |
+
+In everything the owner reads, name an issue or PR by its title and number ("#23 Format the cart
+total"), never by a bare number.
 
 ## 0. Before anything
 
@@ -31,7 +35,22 @@ or unclear: draft the section from what the repository shows, show it to the own
 name each value you assumed, and wait for their answer before building. The settings are the
 owner's to write; leave the files that hold them untouched.
 
-## 1. Who builds it
+## 1. Claim it
+
+The issue is the record of the build; no other state is kept. Before any work, read
+`gh issue view N --comments`. A build is under way when a comment beginning `build-issue:` says so
+and no later one says it stopped, was readied or merged.
+- Assigned to someone other than the owner: it is theirs. Say so, and stop.
+- Under way on the owner's claim: another session may hold it, or one may have died. Tell the owner
+  what the comment says and stop, unless the owner has said to take it over; then carry on in the
+  worktree, branch and PR it names, and comment that this session took it over.
+
+Otherwise claim it: `gh issue edit N --add-assignee @me`, and a comment
+`build-issue: building on <branch> in <worktree>`. Comment again, one line beginning `build-issue:`,
+at each change of stage: stopped (and what it needs), ready (with the PR), failed. A decision the
+owner makes on open forks goes on the issue too.
+
+## 2. Who builds it
 
 **The main session** builds it when it is light:
 - one area, a handful of files, no migration, nothing in the *must change together* or
@@ -57,10 +76,16 @@ as a comment on the issue; then the build goes on.
 the *must change together* setting pairs with it), stop, tell the owner what was found, and hand it to
 an agent.
 
-Two issues can run in parallel when they touch different files. A sweeping rename or move runs
-alone, or as a pure-rename commit first so a later rebase stays mechanical.
+Two issues can run in parallel when they touch different files: before starting a second builder,
+compare the files each will touch, and the files of every open PR (`gh pr diff P --name-only`). A
+sweeping rename or move runs alone, or as a pure-rename commit first so a later rebase stays
+mechanical.
 
-## 2. The worktree
+**An issue too big for one PR** is not split on the fly: propose breaking it into tickets (the
+`to-tickets` skill, then `implement-spec` to build them, where installed), or else put the split to
+the owner as a fork.
+
+## 3. The worktree
 
 Build outside every *protected path* setting: those are trees something live runs from, moved only
 by the deploy, never pulled or fast-forwarded by hand. Each build gets a worktree BESIDE the
@@ -75,7 +100,7 @@ cd ../<repo>-<short>
 then run the *worktree setup* setting there. `<type>` comes from the *branch prefixes* setting
 (default: `feat`, `fix`, `refactor`, `docs`).
 
-## 3. The brief
+## 4. The brief
 
 [brief.md](brief.md) is the builder's whole practice. A background builder is told to read
 `<skill dir>/brief.md` by its absolute path, and given only what is particular to this build:
@@ -87,22 +112,27 @@ then run the *worktree setup* setting there. `<type>` comes from the *branch pre
 Where the builder cannot read files outside its worktree, paste brief.md's text in place of the path.
 When the main session builds, it follows brief.md itself.
 
-## 4. The gate, before "ready"
+## 5. The gate, before "ready"
 
 1. **Review** every PR except a trivial one: a trivial PR adds no file, changes about 100 lines or
    fewer, and carries no decision the builder made that the issue had not. Every other PR goes to a
    SECOND agent, told to read `<skill dir>/review.md` and given the PR number, the issue number, the
-   worktree, and the *review extras* setting; never the builder's account of the work. (The
-   `code-review` skill, where installed, can run it alongside review.md.) Send its
+   worktree, and the *review extras* setting; never the builder's account of the work. Where the
+   `code-review` skill is installed AND the repository is set up for it (its `## Agent skills`
+   block exists), it can run beside review.md; otherwise review.md alone is the review. Send the
    findings back to the builder; a finding that changes a decision goes to the owner first.
-2. **Re-run it yourself** on the pushed head: the *check* setting and every *extra test* setting. A
+2. **Up to date.** If `origin/<default branch>` has moved past the branch's base
+   (`git merge-base --is-ancestor origin/<default branch> HEAD` fails), rebase onto it under
+   after-merge.md section 3's rules, and push with `--force-with-lease`. The checks must run on what
+   will merge.
+3. **Re-run it yourself** on the pushed head: the *check* setting and every *extra test* setting. A
    builder's "passes" is a claim until you have seen it pass.
-3. **CI.** When `gh pr checks N` lists checks, wait on `gh pr checks N --watch` for at most the
-   *CI wait* setting (default 30 minutes). A failing check is a failed check (section 5); "no checks
+4. **CI.** When `gh pr checks N` lists checks, wait on `gh pr checks N --watch` for at most the
+   *CI wait* setting (default 30 minutes). A failing check is a failed check (section 6); "no checks
    reported" means there is no CI to wait for.
-4. `gh pr ready N`, then confirm `gh pr view N --json mergeable,mergeStateStatus` reads `MERGEABLE`
-   and `CLEAN` (poll while it reads `UNKNOWN`).
-5. **Report** to the owner under these headings, in this order:
+5. `gh pr ready N`, then confirm `gh pr view N --json mergeable,mergeStateStatus` reads `MERGEABLE`
+   and `CLEAN` (poll while it reads `UNKNOWN`), and comment `build-issue: ready in <PR>` on the issue.
+6. **Report** to the owner under these headings, in this order:
    - **What it does**
    - **Checked**: each check, who ran it, and its evidence
    - **Decisions to confirm**: what the builder chose that the issue did not say
@@ -112,7 +142,7 @@ When the main session builds, it follows brief.md itself.
 
 The gate is done when every item above has its evidence, on the commit the owner will merge.
 
-## 5. When it goes wrong
+## 6. When it goes wrong
 
 The PR stays a draft through all of these, and the worktree is kept.
 - **A check fails on the pushed head** (the *check*, an *extra test*, or CI): the builder fixes it.
@@ -125,4 +155,7 @@ The PR stays a draft through all of these, and the worktree is kept.
   evidence.
 
 A report of a stop uses the headings **What happened**, **Evidence**, **What it needs from you**,
-and **Where it is** (worktree, branch, PR).
+and **Where it is** (worktree, branch, PR), and goes on the issue as a `build-issue:` comment too.
+
+After a stop or a failure, offer the owner a retro on the session (the `retro` skill, where
+installed): each finding becomes a fix to this skill or a new dry-run scenario.

@@ -23,9 +23,9 @@ m=$(gh pr view N --json state,mergeCommit -q '.state+" "+.mergeCommit.oid') && e
 git merge-base --is-ancestor ${m#* } origin/<default branch>
 ```
 
-Then remove what still exists: the worktree (`git worktree remove <path>`), the local branch
-(`git branch -D <branch>`), and the remote branch (`git push -q origin --delete <branch>`). Say which
-of them were already gone.
+Then comment `build-issue: merged in <PR>` on the issue, and remove what still exists: the worktree
+(`git worktree remove <path>`), the local branch (`git branch -D <branch>`), and the remote branch
+(`git push -q origin --delete <branch>`). Say which of them were already gone.
 
 If `state` is `OPEN`, it did not merge. Say so, delete nothing, and look for why: a conflict
 (`gh pr view N --json mergeable,mergeStateStatus`), a failing check, or a merge never completed.
@@ -41,7 +41,7 @@ Rebase each in its own worktree: `git rebase origin/<default branch>`, or
 source conflicts by reading both sides; a generated file is never hand-merged: regenerate it with the
 *generated files* setting's command and commit that. Then:
 
-1. the gate's re-run (SKILL.md section 4, step 2) on the rebased head;
+1. the gate's re-run (SKILL.md section 5, step 3) on the rebased head;
 2. `git push --force-with-lease`;
 3. `gh pr edit P --base <default branch>` when its base branch is gone;
 4. a note of the rebase in the PR body.

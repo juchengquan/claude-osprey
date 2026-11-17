@@ -1,21 +1,41 @@
 #!/bin/sh
 # A stand-in for the GitHub CLI. It answers from fixture files under the
-# repository's .git/stub/ directory, which the case's scaffold writes.
+# repository's .git/stub/ directory, which repo.sh writes, and records
+# comments and assignees there so later calls see them.
 S="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/stub"
 echo "gh $*" >> "$S/calls.log" 2>/dev/null
 num() { echo "$*" | sed -E 's/.*(view|ready|edit|comment|diff|checks) ([0-9]+).*/\2/'; }
+issue() {
+  n=$1; [ -f "$S/issue/$n" ] || { echo "GraphQL: Could not resolve to an issue ($n)" >&2; exit 1; }
+  sed -n '1,/^--$/p' "$S/issue/$n" | sed '$d'
+  echo "assignees:	$(cat "$S/issue/$n.assignees" 2>/dev/null)"
+  echo "--"
+  sed -n '/^--$/,$p' "$S/issue/$n" | sed '1d'
+  if [ -s "$S/issue/$n.comments" ]; then echo; echo "-- comments --"; cat "$S/issue/$n.comments"; fi
+}
 case "$*" in
   "--version"*) echo "gh version 2.87.3 (stub)";;
   "auth status"*) echo "Logged in to github.com account owner";;
-  "issue view"*) n=$(echo "$*" | sed -E 's/issue view ([0-9]+).*/\1/'); cat "$S/issue/$n" 2>/dev/null || { echo "no issue $n" >&2; exit 1; };;
-  "issue comment"*|"pr comment"*|"pr edit"*) echo "ok";;
+  "issue view"*) issue "$(echo "$*" | sed -E 's/issue view ([0-9]+).*/\1/')";;
+  "issue edit"*"--add-assignee"*) echo owner > "$S/issue/$(num "$*").assignees"; echo "https://github.com/owner/shop/issues/$(num "$*")";;
+  "issue edit"*) echo "https://github.com/owner/shop/issues/$(num "$*")";;
+  "issue comment"*)
+    n=$(num "$*"); body=$(echo "$*" | sed -nE 's/.*(--body|-b) (.*)/\2/p')
+    case "$*" in *--body-file*|*" -F "*) body=$(cat);; esac
+    printf 'owner (now): %s\n' "$body" >> "$S/issue/$n.comments"
+    echo "https://github.com/owner/shop/issues/$n#issuecomment-1";;
+  "issue list"*) cat "$S/issue/list.json" 2>/dev/null || echo "[]";;
+  "pr comment"*|"pr edit"*) echo "https://github.com/owner/shop/pull/$(num "$*")";;
   "pr view"*"mergeCommit"*) cat "$S/pr/$(num "$*").state" 2>/dev/null || echo "OPEN ";;
   "pr view"*"mergeable"*) echo '{"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN"}';;
-  "pr view"*) cat "$S/pr/$(num "$*").json" 2>/dev/null || echo "{\"number\":$(num "$*"),\"state\":\"OPEN\"}";;
-  "pr checks"*) echo "no checks reported on the branch" >&2; exit 1;;
+  "pr view"*) cat "$S/pr/$(num "$*").json" 2>/dev/null || echo "{\"number\":$(num "$*"),\"state\":\"OPEN\",\"isDraft\":true}";;
+  "pr checks"*)
+    if [ -f "$S/ci-fail" ]; then printf 'test\tfail\t1m2s\thttps://github.com/owner/shop/actions/runs/1\n'; exit 1; fi
+    echo "no checks reported on the branch" >&2; exit 1;;
+  "pr diff"*"--name-only"*) cat "$S/pr/$(num "$*").files" 2>/dev/null;;
   "pr list"*) cat "$S/pr/list.json" 2>/dev/null || echo "[]";;
   "pr create"*) echo "https://github.com/owner/shop/pull/40";;
-  "pr ready"*) echo "marked as ready for review";;
+  "pr ready"*) touch "$S/readied"; echo "marked as ready for review";;
   "repo view"*) echo '{"name":"shop","defaultBranchRef":{"name":"main"}}';;
   *) echo "gh stub: unsupported: $*" >&2; exit 1;;
 esac
