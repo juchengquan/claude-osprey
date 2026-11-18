@@ -26,7 +26,7 @@ the repository root.
 | **Must change together** | no | Areas that change in lockstep, such as two backends or a schema and its fixtures | A change to one carries the other in the same PR; reaching one makes the build heavy |
 | **Heavy areas** | no | Code whose change needs a background agent however small it looks, such as a scheduler or stored samples | A build that reaches one goes to an agent; a light build that reaches one stops and is handed over |
 | **Hard rules** | no | Rules quoted verbatim in every brief, such as services and databases a builder may not write to | Pasted word for word into the brief, ahead of the skill's own rules |
-| **Branch prefixes** | no | The allowed `<type>` prefixes of branch names | Defaults to `feat`, `fix`, `refactor`, `docs` |
+| **Branch prefixes** | no | The allowed `<type>` prefixes of branch names | Defaults to `feat`, `fix`, `refactor`, `docs`, `chore` |
 | **Review extras** | no | Checks the reviewer runs when a change includes something, such as a migration tried on a copy of real data | Run by the second agent at the gate when the condition holds |
 | **CI wait** | no | How long to wait for the PR's CI checks | Waited on before "ready" when the PR has checks; defaults to 30 minutes |
 | **Deploy** | no | The tree to deploy from, the deploy command, and the post-deploy checks to show | Used only on "deploy and check"; without it there is nothing to deploy |
@@ -55,7 +55,7 @@ Issues are filed, built, merged and deployed through the `relay` skills (`file-i
 - **Heavy areas:** `<path>`
 - **Hard rules:**
   > <rule, quoted exactly as builders must read it>
-- **Branch prefixes:** `feat`, `fix`, `refactor`, `docs`
+- **Branch prefixes:** `feat`, `fix`, `refactor`, `docs`, `chore`
 - **Review extras:** when <condition>, <check>
 - **CI wait:** <minutes> minutes
 - **Approval label:** `ready-for-agent`

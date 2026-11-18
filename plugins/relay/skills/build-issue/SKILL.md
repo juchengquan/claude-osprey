@@ -121,7 +121,7 @@ cd ../<repo>-<short>
 ```
 
 then run the *worktree setup* setting there. `<type>` comes from the *branch prefixes* setting
-(default: `feat`, `fix`, `refactor`, `docs`).
+(default: `feat`, `fix`, `refactor`, `docs`, `chore`).
 
 ## 4. The brief
 
