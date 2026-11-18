@@ -14,7 +14,7 @@ The project's hard rules come first, exactly as you were given them. These hold 
 > by PID or file. Keep clear of the files a parallel builder is touching.
 
 Scratch files go inside the worktree, deleted before committing, or in your session's own temporary
-directory.
+directory; never a shared `/tmp`, where another build's files sit beside yours.
 
 ## Read first
 

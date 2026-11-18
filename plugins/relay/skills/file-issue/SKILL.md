@@ -52,12 +52,14 @@ On approval, record it and hand over:
 
 ```sh
 fp=$(gh issue view N --json body -q .body | shasum -a 256 | cut -c1-12)
+gh label create <approval label> 2>/dev/null
 gh issue edit N --add-label <approval label>
 gh issue comment N --body "build-issue: approved by the owner on <date> (\"<their words>\"); body $fp"
 ```
 
-The *approval label* setting names the label (default `ready-for-agent`); create it with
-`gh label create` if the repository lacks it. Then follow the `build-issue` skill for issue N,
+The *approval label* setting names the label (default `ready-for-agent`). Adding a label the
+repository lacks fails, so create it first: `gh label create <approval label>` (it fails harmlessly
+when the label exists). Then follow the `build-issue` skill for issue N,
 starting at its section 0.
 
 If the owner asks for changes instead, edit the body (`gh issue edit N --body-file -`) and ask
