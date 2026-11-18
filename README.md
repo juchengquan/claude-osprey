@@ -136,5 +136,7 @@ but each scenario is a real model call; `dry-run.sh --list` names them, with whi
 ## Changing a plugin
 
 An installed plugin stays on its `version` until that changes, so every change to a plugin bumps
-the `version` in its `.claude-plugin/plugin.json`; CI fails a PR that changes a plugin without one.
+the `version` in its `.claude-plugin/plugin.json`. Before pushing, run `tools/validate.sh`: it checks
+that Claude Code accepts the marketplace and every plugin, that the `skills` CLI finds every skill,
+and that every plugin the branch changes has a new version.
 A change to `relay`'s behaviour comes with a dry-run scenario that shows it.
