@@ -1,6 +1,6 @@
 # The `## Building issues` section
 
-Every project-specific value the `build-issue` skill uses comes from a `## Building issues` section
+Every project-specific value the `relay` skills (`file-issue` and `build-issue`) use comes from a `## Building issues` section
 in the project's `CLAUDE.md` (or `AGENTS.md`). The owner writes it; the skill only reads it.
 
 ## When the section or a setting is missing
@@ -30,6 +30,8 @@ the repository root.
 | **Review extras** | no | Checks the reviewer runs when a change includes something, such as a migration tried on a copy of real data | Run by the second agent at the gate when the condition holds |
 | **CI wait** | no | How long to wait for the PR's CI checks | Waited on before "ready" when the PR has checks; defaults to 30 minutes |
 | **Deploy** | no | The tree to deploy from, the deploy command, and the post-deploy checks to show | Used only on "deploy and check"; without it there is nothing to deploy |
+| **Approval label** | no | The label that marks an issue approved for building | Added on approval; defaults to `ready-for-agent` (the name the `triage` skill uses) |
+| **Issue template** | no | The headings an issue in this project has, or a path to a template | `file-issue` writes to it; defaults to its own template |
 | **Sign-off** | no | Lines that end every commit message and PR body | Appended as given |
 
 A hard rule is only as strong as the agent's attention to it. Where the project wants one enforced
@@ -41,7 +43,8 @@ them up for git (pushes, hard resets, forced deletes).
 ```markdown
 ## Building issues
 
-Builds, merges and deploys follow the `build-issue` skill (from juchengquan/claude-osprey).
+Issues are filed, built, merged and deployed through the `relay` skills (`file-issue`,
+`build-issue`; from juchengquan/claude-osprey).
 
 - **Check:** `<command>`
 - **Extra tests:** `<command>`, <N> runs in a row
@@ -55,6 +58,8 @@ Builds, merges and deploys follow the `build-issue` skill (from juchengquan/clau
 - **Branch prefixes:** `feat`, `fix`, `refactor`, `docs`
 - **Review extras:** when <condition>, <check>
 - **CI wait:** <minutes> minutes
+- **Approval label:** `ready-for-agent`
+- **Issue template:** <headings, or a path>
 - **Deploy:** from `<tree>`, `<command>`; then show:
   - <check>
 - **Sign-off:** <lines>
@@ -65,7 +70,8 @@ Builds, merges and deploys follow the `build-issue` skill (from juchengquan/clau
 ```markdown
 ## Building issues
 
-Builds, merges and deploys follow the `build-issue` skill (from juchengquan/claude-osprey).
+Issues are filed, built, merged and deployed through the `relay` skills (`file-issue`,
+`build-issue`; from juchengquan/claude-osprey).
 
 - **Check:** `make check`
 - **Extra tests:** `npm --prefix web test`, 3 runs in a row (the jsdom suite flakes under load)

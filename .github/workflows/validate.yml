@@ -18,8 +18,8 @@ jobs:
         run: |
           claude plugin validate .
           for p in plugins/*/; do claude plugin validate "$p"; done
-      - name: The skills CLI finds build-issue
-        run: npx -y skills add . --list | tee skills.txt && grep -q build-issue skills.txt
+      - name: The skills CLI finds relay's skills
+        run: npx -y skills add . --list | tee skills.txt && grep -q build-issue skills.txt && grep -q file-issue skills.txt
       - name: Every changed plugin has a new version
         if: github.event_name == 'pull_request'
         run: |

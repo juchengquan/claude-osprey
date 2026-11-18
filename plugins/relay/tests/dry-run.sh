@@ -1,17 +1,21 @@
 #!/bin/bash
-# Dry runs of the build-issue skill: each scenario builds a scratch repository
-# with a local origin and a stand-in GitHub CLI, runs `claude -p` with this
-# plugin loaded, and checks the transcript. Nothing reaches GitHub. Each run
-# is a real model call; the default set costs about $1.50.
+# Dry runs of the relay skills (file-issue, build-issue): each scenario builds a
+# scratch repository with a local origin and a stand-in GitHub CLI, runs
+# `claude -p` with this plugin loaded, and checks the transcript and what the
+# stand-in recorded. Nothing reaches GitHub. Each run is a real model call.
 #
-# usage: plugins/build-issue/tests/dry-run.sh [scenario...]
-#   default: fires-and-drafts no-fire open-forks false-merged heavy-area
-#            already-claimed status
-#   opt-in, a whole build each (about $0.50-1):  light-build behind-main ci-fails
+# usage: plugins/relay/tests/dry-run.sh [--list | scenario...]
 set -u
+DEFAULT="fires-and-drafts no-fire no-file file-issue open-forks false-merged heavy-area already-claimed stale-approval status merge-on-word merge-head-moved"
+OPT_IN="light-build behind-main ci-fails"
+if [ "${1:-}" = --list ]; then
+  echo "default (about \$3):            $DEFAULT"
+  echo "opt-in, a whole build each (\$0.50-1): $OPT_IN"
+  exit 0
+fi
 here="$(cd "$(dirname "$0")" && pwd)"
 plugin="$(cd "$here/.." && pwd)"
-work="$(mktemp -d "${TMPDIR:-/tmp}/build-issue-dry-run.XXXXXX")"
+work="$(mktemp -d "${TMPDIR:-/tmp}/relay-dry-run.XXXXXX")"
 mkdir -p "$work/bin" && cp "$here/fixture/gh" "$work/bin/gh" && chmod +x "$work/bin/gh"
 READ_ONLY="Read Glob Grep Skill Bash(gh *) Bash(git status*) Bash(git log*) Bash(git remote*) Bash(git worktree list*) Bash(git fetch*) Bash(git branch*) Bash(git merge-base*) Bash(ls *) Bash(cat *) Bash(command -v *)"
 BUILD="Read Glob Grep Skill Write Edit Bash Agent"
@@ -49,6 +53,13 @@ def stubfile(path):
     except OSError: return ""
 comments = lambda n: stubfile(f"issue/{n}.comments")
 readied = os.path.exists(os.path.join(stub, "readied"))
+labels = lambda n: stubfile(f"issue/{n}.labels")
+merged = lambda n: stubfile(f"pr/{n}.state").startswith("MERGED")
+def fingerprint(n):
+    import hashlib
+    text = stubfile(f"issue/{n}")
+    body = text.split("\n--\n", 1)[1] if "\n--\n" in text else ""
+    return hashlib.sha256(body.encode()).hexdigest()[:12]
 sys.exit(0 if eval(sys.argv[2]) else 1)
 PY
   then echo "  ✓ $desc"; else echo "  ✗ $desc"; failed=1; fi
@@ -77,6 +88,29 @@ scenario() {
       run $1 full "" "$READ_ONLY" "triage #7: is it clear enough to build? Just tell me, don't build it."
       check $1 "the skill does not fire on triage" 'not used("Skill", "build-issue")'
       check $1 "no worktree is created" 'not used("Bash", "worktree add")' ;;
+    no-file)
+      run $1 full "" "$READ_ONLY" "The cart total on the phone sometimes looks a cent off. Any idea why?"
+      check $1 "file-issue does not fire on a problem described in conversation" 'not used("Skill", "file-issue")'
+      check $1 "no issue is filed" 'not used("Bash", "issue create")' ;;
+    file-issue)
+      run $1 full "" "$READ_ONLY" "File an issue: the cart page should show the total with tax under the subtotal. Tax is TAX_RATE from web/src/tax.js, rounded half up to cents. Nothing else changes; I have no other preferences."
+      check $1 "file-issue fires" 'used("Skill", "file-issue")'
+      check $1 "it files one issue with a plain and a technical part" 'used("Bash", "issue create") and all(h in stubfile("issue/50") for h in ("## Summary", "## Technical", "## Acceptance"))'
+      check $1 "it asks for approval and records none" 're.search(r"approv", final, re.I) and not labels(50) and "approved" not in comments(50)'
+      check $1 "it builds nothing" 'not used("Bash", r"worktree add|pr create")' ;;
+    stale-approval)
+      run $1 full stale "$BUILD" "Build the approved issues."
+      check $1 "it builds nothing on a stale approval" 'not used("Bash", r"worktree add|pr create")'
+      check $1 "it says the issue changed and asks for approval" 're.search(r"chang|edit", final, re.I) and re.search(r"approv", final, re.I)' ;;
+    merge-on-word)
+      run $1 full open-pr,ready "$BUILD" "merge #21"
+      check $1 "it merges pinned to the ready commit" 'used("Bash", r"pr merge.*--match-head-commit") and merged(21) and not os.path.exists(os.path.join(stub, "merge-unpinned"))'
+      check $1 "it records the merge and cleans up" 're.search(r"build-issue:.*merged", comments(7)) and "shop-total" not in git' ;;
+    merge-head-moved)
+      run $1 full open-pr,ready,moved "$BUILD" "merge #21"
+      check $1 "it does not merge a PR that moved after ready" 'not merged(21)'
+      check $1 "it says the PR changed since it was reported ready" 're.search(r"(changed|moved|new commit|since)", final, re.I)'
+      check $1 "it deletes nothing" '"shop-total" in git' ;;
     open-forks)
       run $1 full "" "$BUILD" "run #8"
       check $1 "the skill fires" 'used("Skill", "build-issue")'
@@ -99,12 +133,16 @@ scenario() {
       check $1 "it runs the check and opens a draft PR" 'used("Bash", "make check") and used("Bash", r"pr create.*--draft")'
       check $1 "it looks for CI before ready, and marks it ready" 'used("Bash", r"pr checks") and used("Bash", r"pr ready")'
       check $1 "the report uses the gate's headings" 'all(re.search(h, final) for h in ("What it does", "Checked", "notice live"))'
-      check $1 "the issue records the claim and the ready" 'used("Bash", r"issue edit 7.*--add-assignee") and re.search(r"build-issue:.*ready", comments(7))' ;;
+      check $1 "the issue records the claim and the ready" 'used("Bash", r"issue edit 7.*--add-assignee") and re.search(r"build-issue:.*ready", comments(7))'
+      check $1 "it records the approval with the body's fingerprint" '"ready-for-agent" in labels(7) and fingerprint(7) in comments(7)'
+      check $1 "an independent reviewer looked, or a builder agent built it" 'any(n in ("Agent", "Task") and re.search(r"review\.md|brief\.md", i) for n, i in tools)'
+      check $1 "it does not merge without the owner's word" 'not used("Bash", r"pr merge")' ;;
     behind-main)
       run $1 full open-pr,behind "$BUILD" "run #7. PR #21 is mine from a session that died; take it over and get it ready."
       check $1 "it brings the branch up to date before readying" 'used("Bash", r"rebase") and readied'
       check $1 "it re-runs the check after the rebase" 'any(n == "Bash" and "make check" in i for n, i in tools[[k for k, (n, i) in enumerate(tools) if n == "Bash" and "rebase" in i][0]:]) if used("Bash", "rebase") else False'
-      check $1 "it records the takeover on the issue" 're.search(r"build-issue:.*(took|taking|take) (it )?over", comments(7), re.I)' ;;
+      check $1 "it records the takeover on the issue" 're.search(r"build-issue:.*(took|taking|take) (it )?over", comments(7), re.I)'
+      check $1 "it does not merge without the owner's word" 'not used("Bash", r"pr merge")' ;;
     ci-fails)
       run $1 full ci-fail "$BUILD" "run #7"
       check $1 "it never marks the PR ready" 'not readied'
@@ -115,7 +153,7 @@ scenario() {
   esac
 }
 
-for s in "${@:-fires-and-drafts no-fire open-forks false-merged heavy-area already-claimed status}"; do
+for s in "${@:-$DEFAULT}"; do
   for one in $s; do echo "$one"; scenario "$one"; done
 done
 echo "transcripts: $work"

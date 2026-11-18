@@ -1,9 +1,0 @@
-{
-  "name": "build-issue",
-  "version": "0.1.0",
-  "description": "Builds a GitHub issue from branch to merged PR: chooses whether the main session or a background agent builds it, sets up its worktree, briefs the builder, gates the PR, and cleans up after the owner merges",
-  "author": {
-    "name": "juchengquan"
-  },
-  "license": "MIT"
-}

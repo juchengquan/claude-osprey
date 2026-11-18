@@ -11,9 +11,9 @@
       "description": "Your open GitHub PRs and the ones waiting for your review, in a pane beside the chat"
     },
     {
-      "name": "build-issue",
-      "source": "./plugins/build-issue",
-      "description": "A skill that builds a GitHub issue from branch to merged PR, with a worktree, a builder's brief and a gate before ready"
+      "name": "relay",
+      "source": "./plugins/relay",
+      "description": "From a request to a merged PR: an approved GitHub issue, built by subagents, reviewed until clean, merged on the owner's word"
     }
   ]
 }

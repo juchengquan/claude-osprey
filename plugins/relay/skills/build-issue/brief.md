@@ -8,7 +8,8 @@ parallel builder is touching. `gh` is the GitHub CLI (`gh-cli` where `gh` is not
 
 The project's hard rules come first, exactly as you were given them. These hold in every project:
 
-> Work only in your worktree. Never merge, and never push to the default branch. Never deploy.
+> Work only in your worktree. Never merge (only the orchestrator merges, on the owner's word), and
+> never push to the default branch. Never deploy.
 > Never print secrets or `.env` files. Never kill processes by name pattern; wait on your own jobs
 > by PID or file. Keep clear of the files a parallel builder is touching.
 
@@ -49,7 +50,8 @@ Stop the same way when investigation shows the issue's plan will not work as wri
 
 ## The PR
 
-Push the branch and open a DRAFT PR. Its body says what each decision built, lists your engineering
+Push the branch and open a DRAFT PR, or push to the existing one when you are fixing review
+findings. Its body says what each decision built, lists your engineering
 choices, gives the mutation results and the checks you ran, and ends with `Closes #N` (or
 `Part of #N`) and the *sign-off* lines. The `pr` skill, where installed, shapes the rest. No bare
 `@name` anywhere on GitHub.

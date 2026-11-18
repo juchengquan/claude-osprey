@@ -1,5 +1,8 @@
 # After "merged"
 
+Reached from [merge.md](merge.md) after this session merged, or when the owner merged a PR
+themselves and says so.
+
 ## 1. Find the work
 
 The session that built the PR may be gone; GitHub and git hold everything needed. From the PR number:
@@ -23,9 +26,9 @@ m=$(gh pr view N --json state,mergeCommit -q '.state+" "+.mergeCommit.oid') && e
 git merge-base --is-ancestor ${m#* } origin/<default branch>
 ```
 
-Then comment `build-issue: merged in <PR>` on the issue, and remove what still exists: the worktree
-(`git worktree remove <path>`), the local branch (`git branch -D <branch>`), and the remote branch
-(`git push -q origin --delete <branch>`). Say which of them were already gone.
+Then comment `build-issue: merged in <PR> as <merge commit>` on the issue, and remove what still
+exists: the worktree (`git worktree remove <path>`), the local branch (`git branch -D <branch>`), and
+the remote branch (`git push -q origin --delete <branch>`). Say which of them were already gone.
 
 If `state` is `OPEN`, it did not merge. Say so, delete nothing, and look for why: a conflict
 (`gh pr view N --json mergeable,mergeStateStatus`), a failing check, or a merge never completed.

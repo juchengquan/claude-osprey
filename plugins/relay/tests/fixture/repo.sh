@@ -5,6 +5,9 @@
 #   claimed  issue #7 is assigned to someone else, with a build under way
 #   open-pr  PR #21 for issue #7, open, in a worktree beside the repository
 #   behind   (with open-pr) main has moved on since PR #21 was cut
+#   ready    (with open-pr) PR #21 was approved, gated and reported ready
+#   moved    (with ready) a commit was pushed to PR #21 after it was reported ready
+#   stale    issue #7 was approved, but its body has been edited since
 #   ci-fail  every PR's CI check fails
 set -e
 git init -q -b main . && git config user.email t@example.com && git config user.name tester
@@ -21,7 +24,8 @@ if [ "$1" = full ]; then cat >> CLAUDE.md <<'MD'
 
 ## Building issues
 
-Builds, merges and deploys follow the `build-issue` skill (from juchengquan/claude-osprey).
+Issues are filed, built, merged and deployed through the `relay` skills (`file-issue`,
+`build-issue`; from juchengquan/claude-osprey).
 
 - **Check:** `make check`
 - **Protected paths:** `~/srv/shop`: the live site runs from it; only `make deploy` moves it
@@ -48,6 +52,13 @@ if has claimed "$extras"; then
   echo 'alex (2 hours ago): build-issue: building on feat/cart-total in ../shop-total' > $S/issue/7.comments
 fi
 has ci-fail "$extras" && touch $S/ci-fail
+fp() { printf '%s\n' "$1" | shasum -a 256 | cut -c1-12; }
+
+if has stale "$extras"; then
+  echo ready-for-agent > $S/issue/7.labels
+  echo "owner (yesterday): build-issue: approved by the owner on 2026-11-17 (\"go ahead\"); body $(fp 'Add total(items) to web/src/cart.js.')" > $S/issue/7.comments
+  echo '[{"number":7,"title":"Show the cart total with tax","labels":[{"name":"ready-for-agent"}],"assignees":[]}]' > $S/issue/list.json
+fi
 
 if has open-pr "$extras"; then
   git worktree add -q -b feat/cart-total "../$(basename "$PWD")-total" origin/main
@@ -61,6 +72,22 @@ if has open-pr "$extras"; then
   echo owner > $S/issue/7.assignees
   echo 'owner (1 hour ago): build-issue: building on feat/cart-total in ../shop-total' > $S/issue/7.comments
   echo '[{"number":7,"title":"Show the cart total with tax"}]' > $S/issue/list.json
+  touch $S/pr/21.draft
+fi
+
+if has ready "$extras"; then
+  rm -f $S/pr/21.draft
+  sed -i.bak 's/"isDraft":true/"isDraft":false/' $S/pr/21.json $S/pr/list.json
+  head=$(git --git-dir=$S/origin.git rev-parse refs/heads/feat/cart-total)
+  echo ready-for-agent > $S/issue/7.labels
+  { echo "owner (2 hours ago): build-issue: approved by the owner on 2026-11-18 (\"approved\"); body $(fp "$(sed -n '/^--$/,$p' $S/issue/7 | sed 1d)")"
+    cat $S/issue/7.comments
+    echo "owner (10 minutes ago): build-issue: ready in #21 Show the cart total with tax at $head"; } > $S/issue/7.c && mv $S/issue/7.c $S/issue/7.comments
+fi
+
+if has moved "$extras"; then
+  ( cd "../$(basename "$PWD")-total" && printf '// tidy\n' >> web/src/tax.js && cp web/src/*.js web/dist/ &&
+    git commit -qam "Tidy" && git push -q origin feat/cart-total )
 fi
 
 if has behind "$extras"; then

@@ -34,6 +34,11 @@ nothing in the worktree; scratch work goes in your session's own temporary direc
 
 ## Report
 
+This may be a re-review after fixes: check that each earlier finding (on the PR, in its
+`gh pr view P --comments`) is resolved in the new head, and look at the whole PR again, not only the
+fix.
+
 Findings ranked by severity, each with its evidence and the change that would fix it. Then the
-decisions the PR makes that the issue did not, and what each review extra showed. If you found
-nothing, say what you checked.
+decisions the PR makes that the issue did not, and what each review extra showed. Mark any finding
+that is really a decision the issue does not make. If you found nothing, say what you checked; the
+PR is then clean.
