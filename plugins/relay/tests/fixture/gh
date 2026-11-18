@@ -1,0 +1,87 @@
+#!/bin/sh
+# A stand-in for the GitHub CLI. It answers from fixture files under the
+# repository's .git/stub/ directory, which repo.sh writes, records issues,
+# comments, labels and assignees there so later calls see them, and merges
+# PRs into the local origin.
+S="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/stub"
+echo "gh $*" >> "$S/calls.log" 2>/dev/null
+num() { echo "$*" | sed -E 's/.*(view|ready|edit|comment|diff|checks|merge) #?([0-9]+).*/\2/'; }
+body() { sed -n '/^--$/,$p' "$S/issue/$1" | sed '1d'; }
+issue() {
+  n=$1; [ -f "$S/issue/$n" ] || { echo "GraphQL: Could not resolve to an issue ($n)" >&2; exit 1; }
+  sed -n '1,/^--$/p' "$S/issue/$n" | sed '$d'
+  echo "labels:	$(cat "$S/issue/$n.labels" 2>/dev/null | paste -sd, -)"
+  echo "assignees:	$(cat "$S/issue/$n.assignees" 2>/dev/null)"
+  echo "--"
+  body "$n"
+  if [ -s "$S/issue/$n.comments" ]; then echo; echo "-- comments --"; cat "$S/issue/$n.comments"; fi
+}
+# the value after any of the given flags, from the real argument list
+arg() { want=$1; shift; while [ $# -gt 0 ]; do case " $want " in *" $1 "*) echo "$2"; return;; esac; shift; done; }
+
+# JSON answers go through the -q/--jq filter when one is given, as the real CLI does
+q=$(arg "-q --jq" "$@")
+json() { if [ -n "$q" ]; then jq -r "$q"; else cat; fi; }
+
+case "$*" in
+  "--version"*) echo "gh version 2.87.3 (stub)";;
+  "auth status"*) echo "Logged in to github.com account owner";;
+  "issue view"*"--json body"*) body "$(num "$*")";;
+  "issue view"*) issue "$(num "$*")";;
+  "issue create"*)
+    n=$(cat "$S/issue/next" 2>/dev/null || echo 50); echo $((n+1)) > "$S/issue/next"
+    title=$(arg "--title -t" "$@"); text=$(arg "--body -b" "$@")
+    f=$(arg "--body-file -F" "$@"); [ "$f" = - ] && text=$(cat); [ -n "$f" ] && [ "$f" != - ] && text=$(cat "$f")
+    printf 'title:\t%s\nstate:\tOPEN\nnumber:\t%s\n--\n%s\n' "$title" "$n" "$text" > "$S/issue/$n"
+    echo "https://github.com/owner/shop/issues/$n";;
+  "issue edit"*)
+    n=$(num "$*")
+    case "$*" in *--add-assignee*) echo owner > "$S/issue/$n.assignees";; esac
+    l=$(arg "--add-label" "$@"); [ -n "$l" ] && echo "$l" >> "$S/issue/$n.labels"
+    f=$(arg "--body-file -F" "$@"); if [ -n "$f" ]; then
+      [ "$f" = - ] && text=$(cat) || text=$(cat "$f")
+      { sed -n '1,/^--$/p' "$S/issue/$n"; echo "$text"; } > "$S/issue/$n.new" && mv "$S/issue/$n.new" "$S/issue/$n"; fi
+    echo "https://github.com/owner/shop/issues/$n";;
+  "issue comment"*)
+    n=$(num "$*"); text=$(arg "--body -b" "$@")
+    f=$(arg "--body-file -F" "$@"); [ "$f" = - ] && text=$(cat); [ -n "$f" ] && [ "$f" != - ] && text=$(cat "$f")
+    printf 'owner (now): %s\n' "$text" >> "$S/issue/$n.comments"
+    echo "https://github.com/owner/shop/issues/$n#issuecomment-1";;
+  "issue list"*) { cat "$S/issue/list.json" 2>/dev/null || echo "[]"; } | json;;
+  "label"*) echo "ok";;
+  "pr comment"*|"pr edit"*) echo "https://github.com/owner/shop/pull/$(num "$*")";;
+  "pr view"*"mergeCommit"*)
+    if [ -n "$q" ]; then st=$(cat "$S/pr/$(num "$*").state" 2>/dev/null || echo "OPEN ")
+      printf '{"state":"%s","mergeCommit":{"oid":"%s"}}\n' "${st%% *}" "${st#* }" | json
+    else cat "$S/pr/$(num "$*").state" 2>/dev/null || echo "OPEN "; fi;;
+  "pr view"*"headRefOid"*|"pr view"*"mergeable"*)
+    n=$(num "$*"); br=$(sed -nE 's/.*"headRefName":"([^"]+)".*/\1/p' "$S/pr/$n.json" 2>/dev/null)
+    head=$(git --git-dir="$S/origin.git" rev-parse "refs/heads/$br" 2>/dev/null)
+    draft=false; [ -f "$S/pr/$n.draft" ] && draft=true
+    echo "{\"headRefOid\":\"$head\",\"isDraft\":$draft,\"mergeable\":\"MERGEABLE\",\"mergeStateStatus\":\"CLEAN\"}" | json;;
+  "pr view"*) { cat "$S/pr/$(num "$*").json" 2>/dev/null || echo "{\"number\":$(num "$*"),\"state\":\"OPEN\",\"isDraft\":true}"; } | json;;
+  "pr checks"*)
+    if [ -f "$S/ci-fail" ]; then printf 'test\tfail\t1m2s\thttps://github.com/owner/shop/actions/runs/1\n'; exit 1; fi
+    echo "no checks reported on the branch" >&2; exit 1;;
+  "pr diff"*"--name-only"*) cat "$S/pr/$(num "$*").files" 2>/dev/null;;
+  "pr list"*) { cat "$S/pr/list.json" 2>/dev/null || echo "[]"; } | json;;
+  "pr create"*) echo "https://github.com/owner/shop/pull/40";;
+  "pr ready"*) touch "$S/readied"; rm -f "$S/pr/$(num "$*").draft"; echo "marked as ready for review";;
+  "pr merge"*)
+    n=$(num "$*"); br=$(sed -nE 's/.*"headRefName":"([^"]+)".*/\1/p' "$S/pr/$n.json")
+    head=$(git --git-dir="$S/origin.git" rev-parse "refs/heads/$br")
+    want=$(arg "--match-head-commit" "$@")
+    case "$head" in "$want"*) ;; *)
+      [ -n "$want" ] && { echo "GraphQL: Head branch was modified. Review and try the merge again. (mergePullRequest)" >&2; exit 1; } ;;
+    esac
+    [ -z "$want" ] && echo "unpinned" > "$S/merge-unpinned"
+    tmp=$(mktemp -d) && git clone -q "$S/origin.git" "$tmp" &&
+    ( cd "$tmp" && git merge -q --squash "origin/$br" >/dev/null &&
+      git -c user.email=gh@example.com -c user.name=GitHub commit -qm "PR #$n" && git push -q origin HEAD:main ) || exit 1
+    m=$(git --git-dir="$S/origin.git" rev-parse refs/heads/main)
+    echo "MERGED $m" > "$S/pr/$n.state"
+    sed -i.bak 's/"state":"OPEN"/"state":"MERGED"/' "$S/pr/$n.json"
+    echo "✓ Squashed and merged pull request owner/shop#$n";;
+  "repo view"*) echo '{"name":"shop","defaultBranchRef":{"name":"main"}}';;
+  *) echo "gh stub: unsupported: $*" >&2; exit 1;;
+esac

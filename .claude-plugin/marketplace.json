@@ -3,12 +3,17 @@
   "owner": {
     "name": "juchengquan"
   },
-  "description": "Small mods for Claude Code, each installed on its own",
+  "description": "Small mods for Claude Code and other coding agents, each installed on its own",
   "plugins": [
     {
       "name": "pr-radar",
       "source": "./plugins/pr-radar",
       "description": "Your open GitHub PRs and the ones waiting for your review, in a pane beside the chat"
+    },
+    {
+      "name": "relay",
+      "source": "./plugins/relay",
+      "description": "From a request to a merged PR: an approved GitHub issue, built by subagents, reviewed until clean, merged on the owner's word"
     }
   ]
 }
