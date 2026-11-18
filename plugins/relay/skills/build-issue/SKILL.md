@@ -49,7 +49,8 @@ now. Record it, unless the `file-issue` skill just did:
 
 ```sh
 fp=$(gh issue view N --json body -q .body | shasum -a 256 | cut -c1-12)
-gh issue edit N --add-label <approval label>     # the *approval label* setting; default ready-for-agent
+gh label create <approval label> 2>/dev/null     # once per repository; the *approval label* setting,
+gh issue edit N --add-label <approval label>     # default ready-for-agent
 gh issue comment N --body "build-issue: approved by the owner on <date> (\"<their words>\"); body $fp"
 ```
 
@@ -120,7 +121,7 @@ cd ../<repo>-<short>
 ```
 
 then run the *worktree setup* setting there. `<type>` comes from the *branch prefixes* setting
-(default: `feat`, `fix`, `refactor`, `docs`).
+(default: `feat`, `fix`, `refactor`, `docs`, `chore`).
 
 ## 4. The brief
 

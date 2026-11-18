@@ -1,6 +1,6 @@
 {
   "name": "relay",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "From a request to a merged PR: file-issue turns what the owner describes into an approved GitHub issue; build-issue hands it to builders and a reviewer, brings back a merge-ready PR, and merges it on the owner's word",
   "author": {
     "name": "juchengquan"
